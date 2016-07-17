@@ -1,0 +1,8 @@
+[package]
+name = "chip-8"
+version = "0.1.0"
+authors = ["Bryan E. Barnhart <thebryanb@hotmail.com>"]
+
+[dependencies]
+rand = "0.3"
+ncurses = "5"
