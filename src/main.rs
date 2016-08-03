@@ -1,27 +1,12 @@
 extern crate ncurses;
 extern crate rand;
 
+mod memory;
+
 use std::fs::File;
 use std::io::prelude::Read;
 
-const C8_FONT:[u8;0x50] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-];
+use memory::Memory;
 
 const SCREEN_WIDTH:usize  = 64;
 const SCREEN_HEIGHT:usize = 32;
@@ -144,7 +129,7 @@ pub struct Chip8 {
 
     oc:u16, // optcode
     pc:u16, // program counter
-    mem:[u8;0x1000], //memory
+    mem:Memory, //memory
 
     // Stack Variables
     stack:[u16;0x10],
@@ -162,18 +147,13 @@ pub struct Chip8 {
 impl Default for Chip8 {
     fn default() -> Chip8 {
 
-        // load memory with C8 font
-        let mut mem:[u8;0x1000] = [0;0x1000];
-        (mem[..0x50]).copy_from_slice(&C8_FONT);
-        let mem = mem;
-
         Chip8{
             v:[0;0x10],
             i:0x0,
 
             oc:0x0,
             pc:0x200,
-            mem:mem,
+            mem:Memory::default(),
 
             stack:[0;0x10],
             sp:0x0,
@@ -190,15 +170,17 @@ impl Default for Chip8 {
 
 impl Chip8 {
     fn load_rom(&mut self, buff:&[u8]){
-        self.mem[0x200..(0x200 + buff.len())].copy_from_slice(buff);
+        self.mem.set_range(0x200, buff)
+    }
+
+    fn read_address(&self, pointer:u16) -> u16{
+        let top = (self.mem.read_memory(pointer) as u16) << 0x8;
+        let bot = (self.mem.read_memory(pointer + 0x1) & 0xFF) as u16;
+        top | bot
     }
 
     fn fetch_op(&mut self){
-        self.oc = unsafe {
-            let pt = self.pc as usize;
-            std::mem::transmute::<[u8;2], u16>([self.mem[pt],self.mem[pt+1]])
-                .to_be()
-        };
+        self.oc = self.read_address(self.pc);
     }
 
     fn decode_op(&mut self){
@@ -254,7 +236,7 @@ impl Chip8 {
                 self.pc += 2;
             },
             (0x7,x,_,_) => { // add NN to VX
-                self.v[x] = self.v[x].wrapping_add((self.oc & 0x00FF) as u8); 
+                self.v[x] = self.v[x].wrapping_add((self.oc & 0x00FF) as u8);
                 self.pc += 2;
             },
             (0x8,x,y,0x0) => { // set VX to VY
@@ -362,22 +344,21 @@ impl Chip8 {
                 self.pc += 2;
             },
             (0xF,x,0x3,0x3) => {
-                let i = self.i as usize;
+                let i = self.i;
                 let vx = self.v[x];
-                self.mem[i] = vx/100;
-                self.mem[i+1] = (vx/10)%100;
-                self.mem[i+2] = (vx%100)%10;
+                self.mem.write_memory(i,vx/100);
+                self.mem.write_memory(i+1,(vx/10)%100);
+                self.mem.write_memory(i+2,(vx%100)%10);
                 self.pc += 2;
             },
             (0xF,x,0x5,0x5) => { // stores V0 to VX (inclusive) starting at I
-                let index = self.i as usize;
-                self.mem[index..(index + (x+1))]
-                        .copy_from_slice(&self.v[0..(x+1)]);
+                let index = self.i;
+                self.mem.set_range(index, &self.v[0..(x+1)]);
                 self.pc += 2;
             },
             (0xF,x,0x6,0x5) => { // fills V0 to VX (inclusive) starting from I
-                for i in 0..(x+1){
-                    self.v[i] = self.mem[(self.i as usize) + i];
+                for i in 0..(x+1) as u16{
+                    self.v[i as usize] = self.mem.read_memory(self.i + i);
                 }
                 self.pc += 2;
             },
@@ -413,7 +394,7 @@ impl Chip8 {
             std::thread::sleep(std::time::Duration::from_millis(FRAME_RATE));
         }
     }
-    
+
     fn print_screen(&self){
         ncurses::wmove(ncurses::stdscr, 0, 0);
         let mut screen = String::new();
@@ -434,7 +415,7 @@ impl Chip8 {
         let index = self.i as usize;
         for i in 0..height {
             if (y + i >= 0) || (y + i < SCREEN_HEIGHT) {
-                let byte = self.mem[index + i] as usize;
+                let byte = self.mem.read_memory((index + i) as u16) as usize;
                 self.draw_byte(location + i*SCREEN_WIDTH, byte);
             }
         }
