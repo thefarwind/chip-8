@@ -2,11 +2,13 @@ extern crate ncurses;
 extern crate rand;
 
 mod memory;
+mod ncursesio;
 
 use std::fs::File;
 use std::io::prelude::Read;
 
 use memory::Memory;
+use ncursesio::Audio;
 
 const SCREEN_WIDTH:usize  = 64;
 const SCREEN_HEIGHT:usize = 32;
@@ -142,6 +144,7 @@ pub struct Chip8 {
     g:[bool;SCREEN_WIDTH * SCREEN_HEIGHT], // screen pixels (false == off, true == on)
     key:[bool;0x10], // key state (false == down, true == up)
     df:bool, // draw flag (false == no draw, true == draw)
+    audio:Audio,
 }
 
 impl Default for Chip8 {
@@ -164,6 +167,7 @@ impl Default for Chip8 {
             g:[false;SCREEN_WIDTH * SCREEN_HEIGHT],
             key:[false;0x10],
             df:false,
+            audio:Audio::default(),
         }
     }
 }
@@ -375,7 +379,7 @@ impl Chip8 {
     fn dec_st(&mut self){
         if self.st > 0 {
             if self.st == 1 {
-                ncurses::beep();
+                self.audio.beep();
             }
             self.st -= 1;
         }
