@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::Read;
 
 use memory::Memory;
-use ncursesio::Audio;
+use ncursesio::{Audio, Input};
 
 const SCREEN_WIDTH:usize  = 64;
 const SCREEN_HEIGHT:usize = 32;
@@ -17,11 +17,6 @@ const FRAME_RATE:u64 = 17;
 
 trait Screen {
     fn draw_screen(&mut self, pixels:[bool; SCREEN_WIDTH*SCREEN_HEIGHT]);
-}
-
-trait Input {
-    fn set_pushed(&self, &mut [bool;0x10]);
-    fn get_key(&self) -> u8;
 }
 
 // NCurses Implementation of screen and Input
@@ -45,63 +40,6 @@ impl Screen for NCursesScreen {
         ncurses::refresh();
     }
 }
-
-struct NCursesInput {}
-
-impl Input for NCursesInput {
-    fn set_pushed(&self, keys:&mut [bool;0x10]){
-        keys[..].copy_from_slice(&[false;0x10]);
-        ncurses::nodelay(ncurses::stdscr, true);
-
-        loop {
-            match ncurses::getch() {
-                0x31 => keys[0x1] = true, // 1 -> 1
-                0x32 => keys[0x2] = true, // 2 -> 2
-                0x33 => keys[0x3] = true, // 3 -> 3
-                0x34 => keys[0xC] = true, // 4 -> C
-                0x71 => keys[0x4] = true, // q -> 4
-                0x77 => keys[0x5] = true, // w -> 5
-                0x65 => keys[0x6] = true, // e -> 6
-                0x72 => keys[0xD] = true, // r -> D
-                0x61 => keys[0x7] = true, // a -> 7
-                0x73 => keys[0x8] = true, // s -> 8
-                0x64 => keys[0x9] = true, // d -> 9
-                0x66 => keys[0xE] = true, // f -> E
-                0x7A => keys[0xA] = true, // z -> A
-                0x78 => keys[0x0] = true, // x -> 0
-                0x63 => keys[0xB] = true, // c -> B
-                0x76 => keys[0xF] = true, // v -> F
-                ncurses::ERR => break,
-                _ =>{},
-            }
-        }
-
-        ncurses::nodelay(ncurses::stdscr, false);
-    }
-
-    fn get_key(&self) -> u8 {
-        match ncurses::getch() {
-            0x31 => 0x1, // 1 -> 1
-            0x32 => 0x2, // 2 -> 2
-            0x33 => 0x3, // 3 -> 3
-            0x34 => 0xC, // 4 -> C
-            0x71 => 0x4, // q -> 4
-            0x77 => 0x5, // w -> 5
-            0x65 => 0x6, // e -> 6
-            0x72 => 0xD, // r -> D
-            0x61 => 0x7, // a -> 7
-            0x73 => 0x8, // s -> 8
-            0x64 => 0x9, // d -> 9
-            0x66 => 0xE, // f -> E
-            0x7A => 0xA, // z -> A
-            0x78 => 0x0, // x -> 0
-            0x63 => 0xB, // c -> B
-            0x76 => 0xF, // v -> F
-            x => x as u8,
-        }
-    }
-}
-
 
 // Simple ASCII print screen
 ////////////////////////////////////////////////////////////////////////
@@ -145,6 +83,7 @@ pub struct Chip8 {
     key:[bool;0x10], // key state (false == down, true == up)
     df:bool, // draw flag (false == no draw, true == draw)
     audio:Audio,
+    input:Input,
 }
 
 impl Default for Chip8 {
@@ -168,6 +107,7 @@ impl Default for Chip8 {
             key:[false;0x10],
             df:false,
             audio:Audio::default(),
+            input:Input::default(),
         }
     }
 }
@@ -327,7 +267,7 @@ impl Chip8 {
                 self.pc += 2;
             },
             (0xF,x,0x0,0xA) => { // a keypress is awaited, then stored in v[x]
-                self.v[x] = ncurses::getch() as u8;
+                self.v[x] = self.input.get_key(&ncurses::stdscr);
             },
             (0xF,x,0x1,0x5) => { // set delay timer to VX
                 self.dt = self.v[x];
@@ -437,32 +377,9 @@ impl Chip8 {
 
     fn set_pushed(&mut self){
         self.key[..].copy_from_slice(&[false;0x10]);
-        ncurses::nodelay(ncurses::stdscr, true);
-
-        loop {
-            match ncurses::getch() {
-                0x31 => self.key[0x0] = true, // 1
-                0x32 => self.key[0x1] = true, // 2
-                0x33 => self.key[0x2] = true, // 3
-                0x34 => self.key[0x3] = true, // 4
-                0x71 => self.key[0x4] = true, // q
-                0x77 => self.key[0x5] = true, // w
-                0x65 => self.key[0x6] = true, // e
-                0x72 => self.key[0x7] = true, // r
-                0x61 => self.key[0x8] = true, // a
-                0x73 => self.key[0x9] = true, // s
-                0x64 => self.key[0xA] = true, // d
-                0x66 => self.key[0xB] = true, // f
-                0x7A => self.key[0xC] = true, // z
-                0x78 => self.key[0xD] = true, // x
-                0x63 => self.key[0xE] = true, // c
-                0x76 => self.key[0xF] = true, // v
-                ncurses::ERR => break,
-                _ =>{},
-            }
+        for key in self.input.get_keys(&ncurses::stdscr){
+            self.key[key as usize] = true;
         }
-
-        ncurses::nodelay(ncurses::stdscr, false);
     }
 }
 
