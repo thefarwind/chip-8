@@ -8,7 +8,7 @@ use std::fs::File;
 use std::io::prelude::Read;
 
 use memory::Memory;
-use ncursesio::{Audio, Input};
+use ncursesio::{Audio, Display, Input};
 
 const SCREEN_WIDTH:usize  = 64;
 const SCREEN_HEIGHT:usize = 32;
@@ -83,6 +83,7 @@ pub struct Chip8 {
     key:[bool;0x10], // key state (false == down, true == up)
     df:bool, // draw flag (false == no draw, true == draw)
     audio:Audio,
+    display:Display,
     input:Input,
 }
 
@@ -107,6 +108,7 @@ impl Default for Chip8 {
             key:[false;0x10],
             df:false,
             audio:Audio::default(),
+            display:Display::default(),
             input:Input::default(),
         }
     }
@@ -342,14 +344,15 @@ impl Chip8 {
     fn print_screen(&self){
         ncurses::wmove(ncurses::stdscr, 0, 0);
         let mut screen = String::new();
-        for i in 0..SCREEN_HEIGHT {
-            let line:String = self.g[SCREEN_WIDTH*i..SCREEN_WIDTH*(i+1)]
-                .into_iter()
-                .map(|&val| if val {'4'} else {' '})
-                .collect();
-            screen = screen + &(line + "\n");
+        for row in 0..SCREEN_HEIGHT {
+            for col in 0..SCREEN_WIDTH {
+                let pixel = match self.g[SCREEN_WIDTH*row + col] {
+                    true => ncursesio::Pixel::On,
+                    false => ncursesio::Pixel::Off,
+                };
+                let _ = self.display.set(row, col, pixel, &ncurses::stdscr);
+            }
         }
-        ncurses::printw(&screen);
         ncurses::refresh();
     }
 

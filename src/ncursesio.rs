@@ -62,3 +62,25 @@ impl Input {
         }
     }
 }
+
+pub enum Pixel {
+    On,
+    Off,
+}
+
+#[derive(Default)]
+pub struct Display {}
+
+impl Display {
+    pub fn set(&self, row:usize, col:usize, state:Pixel, screen:&ncurses::SCREEN)
+            -> Result<(),()> {
+        let pixel:ncurses::chtype = match state {
+            Pixel::On => 0x34,
+            Pixel::Off => 0x20,
+        };
+        match ncurses::mvwaddch(*screen, row as i32, col as i32, pixel){
+            ncurses::ERR => Err(()),
+            _ => Ok(()),
+        }
+    }
+}
