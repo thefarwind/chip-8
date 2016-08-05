@@ -14,10 +14,11 @@ enum Key {
     Und(i32),
 }
 
-#[derive(Default)]
-pub struct Input {}
+pub struct Input<'a> {
+    screen:&'a ncurses::SCREEN,
+}
 
-impl Input {
+impl<'a> Input<'a> {
     fn map_key(key:i32) -> Key {
         match key {
             0x31 => Key::Key(0x0), // 1
@@ -40,23 +41,27 @@ impl Input {
         }
     }
 
-    pub fn get_keys(&self, screen:&ncurses::SCREEN) -> Vec<u8> {
+    pub fn new(screen:&'a ncurses::SCREEN) -> Input<'a>{
+        Input{screen:screen}
+    }
+
+    pub fn get_keys(&self) -> Vec<u8> {
         let mut keys = Vec::<u8>::new();
-        ncurses::nodelay(*screen, true);
+        ncurses::nodelay(*self.screen, true);
         loop {
-            match Input::map_key(ncurses::wgetch(*screen)) {
+            match Input::map_key(ncurses::wgetch(*self.screen)) {
                 Key::Key(key) => keys.push(key),
                 Key::Und(ncurses::ERR) => break,
                 _ =>{},
             }
         }
-        ncurses::nodelay(*screen, false);
+        ncurses::nodelay(*self.screen, false);
         keys
     }
 
-    pub fn get_key(&self, screen:&ncurses::SCREEN) -> u8 {
+    pub fn get_key(&self) -> u8 {
         loop {
-            if let Key::Key(x) = Input::map_key(ncurses::wgetch(*screen)){
+            if let Key::Key(x) = Input::map_key(ncurses::wgetch(*self.screen)){
                 return x;
             }
         }
@@ -68,19 +73,28 @@ pub enum Pixel {
     Off,
 }
 
-#[derive(Default)]
-pub struct Display {}
+pub struct Display<'a> {
+    screen:&'a ncurses::SCREEN,
+}
 
-impl Display {
-    pub fn set(&self, row:usize, col:usize, state:Pixel, screen:&ncurses::SCREEN)
+impl<'a> Display<'a> {
+    pub fn new(screen:&'a ncurses::SCREEN) -> Display<'a>{
+        Display{screen:screen}
+    }
+
+    pub fn set(&self, row:usize, col:usize, state:Pixel)
             -> Result<(),()> {
         let pixel:ncurses::chtype = match state {
             Pixel::On => 0x34,
             Pixel::Off => 0x20,
         };
-        match ncurses::mvwaddch(*screen, row as i32, col as i32, pixel){
+        match ncurses::mvwaddch(*self.screen, row as i32, col as i32, pixel){
             ncurses::ERR => Err(()),
             _ => Ok(()),
         }
+    }
+
+    pub fn refresh(&self){
+        ncurses::wrefresh(*self.screen);
     }
 }

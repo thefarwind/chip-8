@@ -15,55 +15,10 @@ const SCREEN_HEIGHT:usize = 32;
 
 const FRAME_RATE:u64 = 17;
 
-trait Screen {
-    fn draw_screen(&mut self, pixels:[bool; SCREEN_WIDTH*SCREEN_HEIGHT]);
-}
-
-// NCurses Implementation of screen and Input
-////////////////////////////////////////////////////////////////////////
-
-struct NCursesScreen {}
-
-impl Screen for NCursesScreen {
-    fn draw_screen(&mut self, pixels:[bool; SCREEN_WIDTH*SCREEN_HEIGHT]){
-        ncurses::wmove(ncurses::stdscr, 0, 0);
-        let mut screen = String::new();
-        for i in 0..SCREEN_HEIGHT {
-            let line:String = pixels[SCREEN_WIDTH*i..SCREEN_WIDTH*(i+1)]
-                .into_iter()
-                .map(|&val| if val {'4'} else {' '})
-                .collect();
-            screen = screen + &(line + "\r\n");
-        }
-        let screen = screen;
-        ncurses::printw(&screen);
-        ncurses::refresh();
-    }
-}
-
-// Simple ASCII print screen
-////////////////////////////////////////////////////////////////////////
-
-struct AsciiScreen {}
-
-impl Screen for AsciiScreen {
-    fn draw_screen(&mut self, pixels:[bool; SCREEN_WIDTH*SCREEN_HEIGHT]){
-        let mut screen = String::new();
-        for i in 0..SCREEN_HEIGHT {
-            let line:String = pixels[SCREEN_WIDTH*i..SCREEN_WIDTH*(i+1)]
-                .into_iter()
-                .map(|&val| if val {'%'} else {'_'})
-                .collect();
-            screen = screen + &line;
-        }
-        println!("{}", &screen);
-    }
-}
-
 // Chip-8 Implementation
 ///////////////////////////////////////////////////////////////////////
 
-pub struct Chip8 {
+pub struct Chip8<'a> {
     v:[u8;0x10], //registers
     i:u16,
 
@@ -83,12 +38,12 @@ pub struct Chip8 {
     key:[bool;0x10], // key state (false == down, true == up)
     df:bool, // draw flag (false == no draw, true == draw)
     audio:Audio,
-    display:Display,
-    input:Input,
+    display:Display<'a>,
+    input:Input<'a>,
 }
 
-impl Default for Chip8 {
-    fn default() -> Chip8 {
+impl<'a> Chip8<'a> {
+    fn new(audio:Audio, display:Display<'a>, input:Input<'a>) -> Chip8<'a> {
 
         Chip8{
             v:[0;0x10],
@@ -107,14 +62,14 @@ impl Default for Chip8 {
             g:[false;SCREEN_WIDTH * SCREEN_HEIGHT],
             key:[false;0x10],
             df:false,
-            audio:Audio::default(),
-            display:Display::default(),
-            input:Input::default(),
+            audio:audio,
+            display:display,
+            input:input,
         }
     }
 }
 
-impl Chip8 {
+impl<'a> Chip8<'a> {
     fn load_rom(&mut self, buff:&[u8]){
         self.mem.set_range(0x200, buff)
     }
@@ -269,7 +224,7 @@ impl Chip8 {
                 self.pc += 2;
             },
             (0xF,x,0x0,0xA) => { // a keypress is awaited, then stored in v[x]
-                self.v[x] = self.input.get_key(&ncurses::stdscr);
+                self.v[x] = self.input.get_key();
             },
             (0xF,x,0x1,0x5) => { // set delay timer to VX
                 self.dt = self.v[x];
@@ -342,18 +297,16 @@ impl Chip8 {
     }
 
     fn print_screen(&self){
-        ncurses::wmove(ncurses::stdscr, 0, 0);
-        let mut screen = String::new();
         for row in 0..SCREEN_HEIGHT {
             for col in 0..SCREEN_WIDTH {
                 let pixel = match self.g[SCREEN_WIDTH*row + col] {
                     true => ncursesio::Pixel::On,
                     false => ncursesio::Pixel::Off,
                 };
-                let _ = self.display.set(row, col, pixel, &ncurses::stdscr);
+                let _ = self.display.set(row, col, pixel);
             }
         }
-        ncurses::refresh();
+        self.display.refresh();
     }
 
     fn draw_sprite(&mut self, x:usize, y:usize, height:usize){
@@ -380,7 +333,7 @@ impl Chip8 {
 
     fn set_pushed(&mut self){
         self.key[..].copy_from_slice(&[false;0x10]);
-        for key in self.input.get_keys(&ncurses::stdscr){
+        for key in self.input.get_keys(){
             self.key[key as usize] = true;
         }
     }
@@ -414,7 +367,11 @@ fn main() {
     ncurses::noecho();
     ncurses::cbreak();
 
-    let mut machine = Chip8::default();
+    let mut machine = Chip8::new(
+        Audio::default(),
+        Display::new(&ncurses::stdscr),
+        Input::new(&ncurses::stdscr),
+    );
     machine.load_rom(&data);
     loop {
         machine.cycle();
