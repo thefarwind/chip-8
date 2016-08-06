@@ -1,5 +1,6 @@
 extern crate ncurses;
 
+mod bus;
 mod chip8;
 mod memory;
 mod ncursesio;
@@ -9,7 +10,6 @@ use std::io::prelude::Read;
 
 use chip8::Chip8;
 use ncursesio::{Audio, Display, Input};
-
 
 fn main() {
 

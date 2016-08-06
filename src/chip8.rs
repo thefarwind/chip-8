@@ -2,7 +2,7 @@ extern crate rand;
 
 use super::std;
 
-use super::memory::Memory;
+use super::bus::Bus;
 use super::ncursesio::{Audio, Display, Input, Pixel};
 
 // Constants
@@ -21,7 +21,6 @@ pub struct Chip8<'a> {
 
     oc:u16, // optcode
     pc:u16, // program counter
-    mem:Memory, //memory
 
     // Stack Variables
     stack:[u16;0x10],
@@ -34,9 +33,7 @@ pub struct Chip8<'a> {
     g:[bool;SCREEN_WIDTH * SCREEN_HEIGHT], // screen pixels (false == off, true == on)
     key:[bool;0x10], // key state (false == down, true == up)
     df:bool, // draw flag (false == no draw, true == draw)
-    audio:Audio,
-    display:Display<'a>,
-    input:Input<'a>,
+    bus:Bus<'a>
 }
 
 impl<'a> Chip8<'a> {
@@ -48,7 +45,6 @@ impl<'a> Chip8<'a> {
 
             oc:0x0,
             pc:0x200,
-            mem:Memory::default(),
 
             stack:[0;0x10],
             sp:0x0,
@@ -59,21 +55,19 @@ impl<'a> Chip8<'a> {
             g:[false;SCREEN_WIDTH * SCREEN_HEIGHT],
             key:[false;0x10],
             df:false,
-            audio:audio,
-            display:display,
-            input:input,
+            bus:Bus::new(audio, display, input),
         }
     }
 }
 
 impl<'a> Chip8<'a> {
     pub fn load_rom(&mut self, buff:&[u8]){
-        self.mem.set_range(0x200, buff)
+        self.bus.memory.set_range(0x200, buff)
     }
 
     fn read_address(&self, pointer:u16) -> u16{
-        let top = (self.mem.read_memory(pointer) as u16) << 0x8;
-        let bot = (self.mem.read_memory(pointer + 0x1) & 0xFF) as u16;
+        let top = (self.bus.memory.read_memory(pointer) as u16) << 0x8;
+        let bot = (self.bus.memory.read_memory(pointer + 0x1) & 0xFF) as u16;
         top | bot
     }
 
@@ -221,7 +215,7 @@ impl<'a> Chip8<'a> {
                 self.pc += 2;
             },
             (0xF,x,0x0,0xA) => { // a keypress is awaited, then stored in v[x]
-                self.v[x] = self.input.get_key();
+                self.v[x] = self.bus.input.get_key();
             },
             (0xF,x,0x1,0x5) => { // set delay timer to VX
                 self.dt = self.v[x];
@@ -244,19 +238,19 @@ impl<'a> Chip8<'a> {
             (0xF,x,0x3,0x3) => {
                 let i = self.i;
                 let vx = self.v[x];
-                self.mem.write_memory(i,vx/100);
-                self.mem.write_memory(i+1,(vx/10)%100);
-                self.mem.write_memory(i+2,(vx%100)%10);
+                self.bus.memory.write_memory(i,vx/100);
+                self.bus.memory.write_memory(i+1,(vx/10)%100);
+                self.bus.memory.write_memory(i+2,(vx%100)%10);
                 self.pc += 2;
             },
             (0xF,x,0x5,0x5) => { // stores V0 to VX (inclusive) starting at I
                 let index = self.i;
-                self.mem.set_range(index, &self.v[0..(x+1)]);
+                self.bus.memory.set_range(index, &self.v[0..(x+1)]);
                 self.pc += 2;
             },
             (0xF,x,0x6,0x5) => { // fills V0 to VX (inclusive) starting from I
                 for i in 0..(x+1) as u16{
-                    self.v[i as usize] = self.mem.read_memory(self.i + i);
+                    self.v[i as usize] = self.bus.memory.read_memory(self.i + i);
                 }
                 self.pc += 2;
             },
@@ -273,7 +267,7 @@ impl<'a> Chip8<'a> {
     fn dec_st(&mut self){
         if self.st > 0 {
             if self.st == 1 {
-                self.audio.beep();
+                self.bus.audio.beep();
             }
             self.st -= 1;
         }
@@ -300,10 +294,10 @@ impl<'a> Chip8<'a> {
                     true => Pixel::On,
                     false => Pixel::Off,
                 };
-                let _ = self.display.set(row, col, pixel);
+                let _ = self.bus.display.set(row, col, pixel);
             }
         }
-        self.display.refresh();
+        self.bus.display.refresh();
     }
 
     fn draw_sprite(&mut self, x:usize, y:usize, height:usize){
@@ -312,7 +306,7 @@ impl<'a> Chip8<'a> {
         let index = self.i as usize;
         for i in 0..height {
             if (y + i >= 0) || (y + i < SCREEN_HEIGHT) {
-                let byte = self.mem.read_memory((index + i) as u16) as usize;
+                let byte = self.bus.memory.read_memory((index + i) as u16) as usize;
                 self.draw_byte(location + i*SCREEN_WIDTH, byte);
             }
         }
@@ -330,7 +324,7 @@ impl<'a> Chip8<'a> {
 
     fn set_pushed(&mut self){
         self.key[..].copy_from_slice(&[false;0x10]);
-        for key in self.input.get_keys(){
+        for key in self.bus.input.get_keys(){
             self.key[key as usize] = true;
         }
     }
