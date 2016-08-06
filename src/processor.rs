@@ -3,8 +3,9 @@ extern crate rand;
 use super::std;
 
 use super::bus::Bus;
+use super::io::Audio;
 use super::memory::Memory;
-use super::ncursesio::{Audio, Display, Input, Pixel};
+use super::ncursesio::{Display, Input, Pixel};
 
 // Constants
 ///////////////////////////////////////////////////////////////////////
@@ -74,7 +75,8 @@ impl Processor {
         self.oc = Processor::read_address(self.pc, memory);
     }
 
-    fn run_optcode(&mut self, bus:&mut Bus){
+    fn run_optcode<A>(&mut self, bus:&mut Bus<A>)
+            where A:Audio {
         let b1 = (self.oc & 0xF000) >> 0xC;
         let b2 = ((self.oc & 0x0F00) >> 0x8) as usize;
         let b3 = ((self.oc & 0x00F0) >> 0x4) as usize;
@@ -314,7 +316,8 @@ impl Processor {
     }
     // pub &mut self functions
 
-    pub fn cycle(&mut self, bus:&mut Bus){
+    pub fn cycle<A>(&mut self, bus:&mut Bus<A>)
+            where A:Audio {
         self.load_optcode(&bus.memory);
         self.run_optcode(bus);
         self.decrement_delay_timer();

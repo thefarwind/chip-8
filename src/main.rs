@@ -2,6 +2,7 @@ extern crate ncurses;
 
 mod bus;
 mod chip8;
+mod io;
 mod memory;
 mod ncursesio;
 mod processor;
@@ -10,8 +11,10 @@ mod tests;
 use std::fs::File;
 use std::io::prelude::Read;
 
+use io::Audio;
+
 use chip8::Chip8;
-use ncursesio::{Audio, Display, Input};
+use ncursesio::{Display, Input};
 
 fn main() {
 
@@ -42,7 +45,7 @@ fn main() {
     ncurses::cbreak();
 
     let mut machine = Chip8::new(
-        Audio::default(),
+        ncursesio::Audio::default(),
         Display::new(&ncurses::stdscr),
         Input::new(&ncurses::stdscr),
     );

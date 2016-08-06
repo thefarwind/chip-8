@@ -1,10 +1,12 @@
 extern crate ncurses;
 
+use super::io;
+
 #[derive(Default)]
 pub struct Audio{}
 
-impl Audio {
-    pub fn beep(&self){
+impl io::Audio for Audio {
+    fn beep(&self){
         ncurses::beep();
     }
 }
