@@ -4,6 +4,7 @@ mod bus;
 mod chip8;
 mod memory;
 mod ncursesio;
+mod processor;
 
 use std::fs::File;
 use std::io::prelude::Read;
@@ -44,14 +45,9 @@ fn main() {
         Display::new(&ncurses::stdscr),
         Input::new(&ncurses::stdscr),
     );
-    machine.load_rom(&data);
-    loop {
-        machine.cycle();
-    }
 
-    ncurses::nocbreak();
-    ncurses::echo();
-    ncurses::endwin();
+    machine.load_rom(&data);
+    machine.run();
 }
 
 
