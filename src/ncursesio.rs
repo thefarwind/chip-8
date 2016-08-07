@@ -70,11 +70,6 @@ impl<'a> Input<'a> {
     }
 }
 
-pub enum Pixel {
-    On,
-    Off,
-}
-
 pub struct Display<'a> {
     screen:&'a ncurses::SCREEN,
 }
@@ -83,12 +78,14 @@ impl<'a> Display<'a> {
     pub fn new(screen:&'a ncurses::SCREEN) -> Display<'a>{
         Display{screen:screen}
     }
+}
 
-    pub fn set(&self, row:usize, col:usize, state:Pixel)
+impl<'a> io::Display for Display<'a> {
+    fn set(&self, row:usize, col:usize, state:io::Pixel)
             -> Result<(),()> {
         let pixel:ncurses::chtype = match state {
-            Pixel::On => 0x34,
-            Pixel::Off => 0x20,
+            io::Pixel::On => 0x34,
+            io::Pixel::Off => 0x20,
         };
         match ncurses::mvwaddch(*self.screen, row as i32, col as i32, pixel){
             ncurses::ERR => Err(()),
@@ -96,7 +93,7 @@ impl<'a> Display<'a> {
         }
     }
 
-    pub fn refresh(&self){
+    fn refresh(&self){
         ncurses::wrefresh(*self.screen);
     }
 }
