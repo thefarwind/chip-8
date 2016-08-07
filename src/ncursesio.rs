@@ -83,7 +83,7 @@ impl<'a> Display<'a> {
 }
 
 impl<'a> io::Display for Display<'a> {
-    fn set(&self, row:usize, col:usize, state:io::Pixel)
+    fn set(&mut self, row:usize, col:usize, state:io::Pixel)
             -> Result<(),()> {
         let pixel:ncurses::chtype = match state {
             io::Pixel::On => 0x34,
@@ -95,7 +95,7 @@ impl<'a> io::Display for Display<'a> {
         }
     }
 
-    fn refresh(&self){
+    fn refresh(&mut self){
         ncurses::wrefresh(*self.screen);
     }
 }
