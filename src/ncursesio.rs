@@ -1,6 +1,6 @@
 extern crate ncurses;
 
-use super::io;
+use super::chip_8::io;
 
 #[derive(Default)]
 pub struct Audio{}
