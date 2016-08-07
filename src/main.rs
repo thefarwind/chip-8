@@ -11,10 +11,10 @@ mod tests;
 use std::fs::File;
 use std::io::prelude::Read;
 
-use io::Audio;
+use io::{Audio, Display};
 
 use chip8::Chip8;
-use ncursesio::{Display, Input};
+use ncursesio::Input;
 
 fn main() {
 
@@ -46,7 +46,7 @@ fn main() {
 
     let mut machine = Chip8::new(
         ncursesio::Audio::default(),
-        Display::new(&ncurses::stdscr),
+        ncursesio::Display::new(&ncurses::stdscr),
         Input::new(&ncurses::stdscr),
     );
 
