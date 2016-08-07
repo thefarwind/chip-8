@@ -1,22 +1,23 @@
 use super::memory::Memory;
-use super::io::{Audio, Display};
-use super::ncursesio::Input;
+use super::io::{Audio, Display, Input};
 
-pub struct Bus<'a, A, D>
+pub struct Bus<A, D, I>
         where
             A: Audio,
-            D: Display {
+            D: Display,
+            I: Input {
     pub memory:Memory,
     pub audio:A,
     pub display:D,
-    pub input:Input<'a>,
+    pub input:I,
 }
 
-impl<'a, A, D> Bus<'a, A, D>
+impl<A, D, I> Bus<A, D, I>
         where
             A: Audio,
-            D: Display {
-    pub fn new(audio:A, display:D, input:Input<'a>) -> Bus<'a, A, D> {
+            D: Display,
+            I: Input {
+    pub fn new(audio:A, display:D, input:I) -> Bus<A, D, I> {
         Bus{
             memory:Memory::default(),
             audio:audio,

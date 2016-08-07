@@ -46,8 +46,10 @@ impl<'a> Input<'a> {
     pub fn new(screen:&'a ncurses::SCREEN) -> Input<'a>{
         Input{screen:screen}
     }
+}
 
-    pub fn get_keys(&self) -> Vec<u8> {
+impl<'a> io::Input for Input<'a> {
+    fn get_keys(&self) -> Vec<u8> {
         let mut keys = Vec::<u8>::new();
         ncurses::nodelay(*self.screen, true);
         loop {
@@ -61,7 +63,7 @@ impl<'a> Input<'a> {
         keys
     }
 
-    pub fn get_key(&self) -> u8 {
+    fn get_key(&self) -> u8 {
         loop {
             if let Key::Key(x) = Input::map_key(ncurses::wgetch(*self.screen)){
                 return x;
