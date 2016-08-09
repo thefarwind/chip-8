@@ -1,6 +1,7 @@
 pub const SCREEN_WIDTH:usize  = 0x40;
 pub const SCREEN_HEIGHT:usize = 0x20;
 
+#[derive(Debug,Clone,Copy,PartialEq)]
 pub enum Pixel {
     On,
     Off,
