@@ -2,8 +2,10 @@
 extern crate rand;
 
 use super::*;
-use rand::Rng;
+use super::std;
+use self::rand::Rng;
 
+/*
 #[test]
 fn test_0nnn(){
     assert!(false);
@@ -411,4 +413,4 @@ fn test_fx55(){
 #[test]
 fn test_fx65(){
     assert!(false);
-}
+}*/
