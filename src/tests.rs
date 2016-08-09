@@ -196,11 +196,13 @@ fn test_mock_display_refresh(){
 ////////////////////////////////////////////////////////////////////////
 /*
 #[test]
+#[ignore]
 fn test_0nnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_00e0(){
     assert!(false);
 }
@@ -264,16 +266,19 @@ fn test_2nnn(){
 }
 
 #[test]
+#[ignore]
 fn test_3xnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_4xnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_5xy0(){
     assert!(false);
 }
@@ -455,6 +460,7 @@ fn test_8xy5(){
 }
 
 #[test]
+#[ignore]
 fn test_8xy6(){
     assert!(false);
 }
@@ -489,16 +495,19 @@ fn test_8xy7(){
 }
 
 #[test]
+#[ignore]
 fn test_8xye(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_9xy0(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_annn(){
     assert!(false);
 }
@@ -532,11 +541,13 @@ fn test_bnnn(){
 }
 
 #[test]
+#[ignore]
 fn test_cxnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_dxyn(){
     assert!(false);
 }
@@ -555,51 +566,61 @@ fn test_ex9e(){
 }
 
 #[test]
+#[ignore]
 fn test_exa1(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx07(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx0a(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx15(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx18(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx1e(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx29(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx33(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx55(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx65(){
     assert!(false);
 }*/
