@@ -4,13 +4,12 @@ use super::std;
 
 use super::bus::Bus;
 use super::io::{Audio, Display, Input, Pixel};
+use super::io::{SCREEN_WIDTH, SCREEN_HEIGHT};
 use super::memory::Memory;
 
 // Constants
 ///////////////////////////////////////////////////////////////////////
 
-const SCREEN_WIDTH:usize  = 0x40;
-const SCREEN_HEIGHT:usize = 0x20;
 const FRAME_RATE:u64 = 17;
 
 // Processor
@@ -275,7 +274,7 @@ impl Processor {
         }
     }
 
-    fn print_screen(&self, display:&Display){
+    fn print_screen(&self, display:&mut Display){
         for row in 0..SCREEN_HEIGHT {
             for col in 0..SCREEN_WIDTH {
                 let pixel = match self.screen[SCREEN_WIDTH*row + col] {
@@ -330,7 +329,7 @@ impl Processor {
 
         self.set_pushed(&bus.input);
         if self.draw_flag {
-            self.print_screen(&bus.display);
+            self.print_screen(&mut bus.display);
             self.draw_flag = false;
             std::thread::sleep(std::time::Duration::from_millis(FRAME_RATE));
         }

@@ -2,8 +2,199 @@
 extern crate rand;
 
 use super::*;
-use rand::Rng;
+use super::std;
+use self::rand::Rng;
 
+use super::io::{Audio, Display, Input};
+
+// Mock IO Devices
+////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug)]
+struct MockAudio {
+    beeped:std::cell::Cell<bool>,
+}
+
+impl Default for MockAudio {
+    fn default() -> MockAudio {
+        MockAudio{beeped:std::cell::Cell::new(false)}
+    }
+}
+
+impl Audio for MockAudio {
+    fn beep(&self){
+        self.beeped.set(true);
+    }
+}
+
+const SCREEN_SIZE:usize = io::SCREEN_WIDTH*io::SCREEN_HEIGHT;
+
+struct MockDisplay {
+    waiting:[io::Pixel;SCREEN_SIZE],
+    drawn:[io::Pixel;SCREEN_SIZE],
+}
+
+impl Default for MockDisplay {
+    fn default() -> MockDisplay{
+        MockDisplay{
+            waiting:[io::Pixel::Off;SCREEN_SIZE],
+            drawn:[io::Pixel::Off;SCREEN_SIZE],
+        }
+    }
+}
+
+impl Display for MockDisplay {
+    fn set(&mut self, row:usize, col:usize, state:io::Pixel) -> Result<(),()>{
+
+        match ((row >= io::SCREEN_HEIGHT),(col >= io::SCREEN_WIDTH)){
+            (true,_)|(_,true) => {
+                Err(())
+            },
+            (false,false) => {
+                self.waiting[row*io::SCREEN_WIDTH + col] = state;
+                Ok(())
+            },
+        }
+    }
+    fn refresh(&mut self){
+        self.drawn[..].copy_from_slice(&self.waiting);
+    }
+}
+
+#[derive(Default, Debug)]
+struct MockInput {
+    pressed:Vec<u8>,
+}
+
+impl MockInput {
+    fn set(&mut self, value:u8){
+        self.pressed.push(value)
+    }
+    fn clear(&mut self){
+        self.pressed.clear()
+    }
+}
+
+impl Input for MockInput {
+    fn get_keys(&self) -> Vec<u8> {
+        self.pressed.clone()
+    }
+    fn get_key(&self) -> u8 {
+        self.pressed[0]
+    }
+}
+
+// Mock Device Tests
+////////////////////////////////////////////////////////////////////////
+
+#[test]
+fn test_mock_audio(){
+    let mock = MockAudio::default();
+    assert!(!mock.beeped.get());
+    mock.beep();
+    assert!(mock.beeped.get());
+}
+
+#[test]
+fn test_mock_input_set(){
+    let mut mock = MockInput::default();
+
+    for i in 0..0x10 {
+        mock.set(i);
+    }
+
+    for i in 0..0x10 {
+        assert_eq!(mock.pressed[i],i as u8);
+    }
+}
+
+#[test]
+fn test_mock_input_clear(){
+    let mut mock = MockInput::default();
+
+    for i in 0..0x10 {
+        mock.set(i);
+    }
+
+    mock.clear();
+    assert!(mock.pressed.is_empty());
+}
+
+#[test]
+fn test_mock_input_get_keys(){
+    let mut mock = MockInput::default();
+
+    for i in 0..0x10 {
+        mock.set(i);
+    }
+
+    let keys = mock.get_keys();
+
+    for i in 0..0x10 {
+        assert_eq!(i as u8,keys[i]);
+    }
+}
+
+#[test]
+fn test_mock_input_get_key(){
+    let mut mock = MockInput::default();
+
+    for i in 0..0x10 {
+        mock.set(i);
+        assert_eq!(mock.get_key(),i);
+        mock.clear();
+    }
+}
+
+#[test]
+fn test_mock_display_set(){
+    let mut mock = MockDisplay::default();
+    let mut tracker = [io::Pixel::Off;SCREEN_SIZE];
+
+    for i in 0..SCREEN_SIZE {
+
+        let pixel = match rand::random::<bool>() {
+            true => io::Pixel::On,
+            false => io::Pixel::Off,
+        };
+
+        tracker[i] = pixel;
+        mock.set(i/io::SCREEN_WIDTH, i%io::SCREEN_WIDTH, pixel).unwrap();
+    }
+
+    for i in 0..SCREEN_SIZE {
+        assert_eq!(tracker[i], mock.waiting[i]);
+        assert_eq!(io::Pixel::Off, mock.drawn[i]);
+    }
+}
+
+#[test]
+fn test_mock_display_refresh(){
+    let mut mock = MockDisplay::default();
+    let mut tracker = [io::Pixel::Off;SCREEN_SIZE];
+
+    for i in 0..SCREEN_SIZE {
+
+        let pixel = match rand::random::<bool>() {
+            true => io::Pixel::On,
+            false => io::Pixel::Off,
+        };
+
+        tracker[i] = pixel;
+        mock.set(i/io::SCREEN_WIDTH, i%io::SCREEN_WIDTH, pixel).unwrap();
+    }
+
+    mock.refresh();
+
+    for i in 0..SCREEN_SIZE {
+        assert_eq!(tracker[i], mock.waiting[i]);
+        assert_eq!(tracker[i], mock.drawn[i]);
+    }
+}
+
+// Processor Tests
+////////////////////////////////////////////////////////////////////////
+/*
 #[test]
 fn test_0nnn(){
     assert!(false);
@@ -411,4 +602,4 @@ fn test_fx55(){
 #[test]
 fn test_fx65(){
     assert!(false);
-}
+}*/
