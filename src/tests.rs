@@ -5,7 +5,9 @@ use super::*;
 use super::std;
 use self::rand::Rng;
 
+use super::bus;
 use super::io::{Audio, Display, Input};
+use super::processor;
 
 // Mock IO Devices
 ////////////////////////////////////////////////////////////////////////
@@ -82,6 +84,15 @@ impl Input for MockInput {
     fn get_key(&self) -> u8 {
         self.pressed[0]
     }
+}
+
+// Helper Functions
+////////////////////////////////////////////////////////////////////////
+fn new_mock_bus() -> bus::Bus<MockAudio, MockDisplay, MockInput>{
+    bus::Bus::new(
+        MockAudio::default(),
+        MockDisplay::default(),
+        MockInput::default())
 }
 
 // Mock Device Tests
@@ -194,13 +205,15 @@ fn test_mock_display_refresh(){
 
 // Processor Tests
 ////////////////////////////////////////////////////////////////////////
-/*
+
 #[test]
+#[ignore]
 fn test_0nnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_00e0(){
     assert!(false);
 }
@@ -209,71 +222,56 @@ fn test_00e0(){
 fn test_1nnn(){
     let mut rng = rand::thread_rng();
     for _ in 0..1000 {
-        // start at 202 to not overwrite first instruction
-        let nnn = rng.gen_range(0x202,0xFFF);
+        let nnn = rng.gen_range(0x204, 0xFFC);
         let zn = ((nnn >> 0x8) | 0x10) as u8;
         let nn = (nnn & 0x0FF) as u8;
 
         let mut memory:[u8;0xE00] = [0;0xE00];
-        // set jump command
-        memory[0] = zn | 0x10;
-        memory[1] = nn;
+        memory[0x0..0x4].copy_from_slice(&[
+            0xA3, 0x00,
+            zn | 0x10, nn,
+        ]);
 
-        // set jumped to command
-        memory[nnn - 0x200] = 0x65;
-        memory[nnn - 0x200 + 1] = 0x55;
+        // set V0 to 0x55
+        let start = nnn - 0x200;
+        memory[start..(start+0x4)].copy_from_slice(&[
+            0x60, 0x55,
+            0xF0, 0x55,
+        ]);
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        // verify two cycles caused jumped to command to be executed
-        assert!(machine.v[0x5] == 0x55);
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300), 0x55);
     }
 }
 
 #[test]
+#[ignore]
 fn test_2nnn(){
-    let mut rng = rand::thread_rng();
-    for _ in 0..1000 {
-        // start at 202 to not overwrite first instruction
-        let nnn = rng.gen_range(0x202,0xFFF);
-        let zn = ((nnn >> 8) | 0x20) as u8;
-        let nn = (nnn & 0x0FF) as u8;
-
-        let mut memory:[u8;0xE00] = [0;0xE00];
-        // set call command
-        memory[0] = zn;
-        memory[1] = nn;
-
-        // set jumped to command
-        memory[nnn - 0x200] = 0x65;
-        memory[nnn - 0x200 + 1] = 0x55;
-
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-
-        // verify two cycles caused jumped to command to be executed
-        assert!(machine.v[0x5] == 0x55);
-        assert!(machine.sp == 1);
-        assert!(machine.stack[0] == 0x200);
-    }
+    assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_3xnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_4xnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_5xy0(){
     assert!(false);
 }
@@ -285,14 +283,20 @@ fn test_6xnn(){
         let n = rand::random::<u8>() & 0xFF;
 
         let memory = [
-            0x60 | x, n,
+            0xA3, 0x00,     // set index to 300
+            0x60 | x, n,    // set VX to NN
+            0xFF, 0x55,     // set 300-30F to V0-VF
         ];
 
-    let mut machine = Chip8::default();
-    machine.load_rom(&memory);
-    machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-    assert!(machine.v[x as usize] == n);
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300 + (x as u16)),n);
     }
 }
 
@@ -300,20 +304,54 @@ fn test_6xnn(){
 fn test_7xnn(){
     for _ in 0..1000 {
         let x = rand::random::<u8>() & 0x0F;
-        let xbase = rand::random::<u8>();
+        let x_base = rand::random::<u8>();
         let n = rand::random::<u8>();
 
         let memory = [
-            0x60 | x, xbase,
-            0x70 | x, n,
+            0xA3, 0x00,         // set index to 300
+            0x60 | x, x_base,   // set VX to a x_base
+            0x70 | x, n,        // add n to VX
+            0xFF, 0x55,         // copy V0-VF to 300-30F
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        assert!(machine.v[x as usize] == xbase.wrapping_add(n));
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300 + (x as u16)),
+                x_base.wrapping_add(n));
+    }
+}
+
+#[test]
+fn test_8xy0(){
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
+        let y_val = rand::random::<u8>();
+
+        let memory = [
+            0xA3, 0x00,
+            0x60 | y, y_val,
+            0x80 | x, 0x00 | (y << 0x4),
+            0xFF, 0x55,
+        ];
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300 + x as u16), y_val);
     }
 }
 
@@ -321,26 +359,30 @@ fn test_7xnn(){
 fn test_8xy1(){
     for _ in 0..1000 {
         let x = rand::random::<u8>() & 0x0F;
-        let mut y = x;
-        while y == x {y = rand::random::<u8>() & 0x0F;}
-        let y = y;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = rand::random::<u8>();
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x01 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        assert!(machine.v[x as usize] == xval | yval);
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300 + x as u16), x_val | y_val);
     }
 }
 
@@ -348,26 +390,30 @@ fn test_8xy1(){
 fn test_8xy2(){
     for _ in 0..1000 {
         let x = rand::random::<u8>() & 0x0F;
-        let mut y = x;
-        while y == x {y = rand::random::<u8>() & 0x0F;}
-        let y = y;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = rand::random::<u8>();
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x02 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        assert!(machine.v[x as usize] == xval & yval);
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300+ x as u16), x_val & y_val);
     }
 }
 
@@ -375,130 +421,160 @@ fn test_8xy2(){
 fn test_8xy3(){
     for _ in 0..1000 {
         let x = rand::random::<u8>() & 0x0F;
-        let mut y = x;
-        while y == x {y = rand::random::<u8>() & 0x0F;}
-        let y = y;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = rand::random::<u8>();
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x03 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        assert!(machine.v[x as usize] == xval ^ yval);
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300 + x as u16), x_val ^ y_val);
     }
 }
 
 #[test]
 fn test_8xy4(){
-    let mut rng = rand::thread_rng();
     for _ in 0..1000 {
-        let x = rng.gen_range(0x0, 0x0F);
-        let y = rng.gen_range(0x0, 0x0F);
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = if x != y {rand::random::<u8>()} else {xval};
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x04 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        let (sum, flag) = xval.overflowing_add(yval);
-        assert!(machine.v[x as usize] == sum);
-        assert!(machine.v[0xF] == if flag {1} else {0});
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        let (sum, flag) = x_val.overflowing_add(y_val);
+
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), sum);
+        }
+
+        assert_eq!(bus.memory.read_memory(0x30F), if flag {1} else {0});
     }
 }
 
 #[test]
 fn test_8xy5(){
-    let mut rng = rand::thread_rng();
     for _ in 0..1000 {
-        let x = rng.gen_range(0x0, 0x0F);
-        let y = rng.gen_range(0x0, 0x0F);
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = if x != y {rand::random::<u8>()} else {xval};
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x05 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        let (sum, flag) = xval.overflowing_sub(yval);
-        assert!(machine.v[x as usize] == sum);
-        assert!(machine.v[0xF] == if flag {0} else {1});
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        let (sum, flag) = x_val.overflowing_sub(y_val);
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), sum);
+        }
+        assert_eq!(bus.memory.read_memory(0x30F), if flag {0} else {1});
     }
 }
 
 #[test]
+#[ignore]
 fn test_8xy6(){
     assert!(false);
 }
 
 #[test]
 fn test_8xy7(){
-    let mut rng = rand::thread_rng();
     for _ in 0..1000 {
-        let x = rng.gen_range(0x0, 0x0F);
-        let y = rng.gen_range(0x0, 0x0F);
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
 
-        let xval:u8 = rand::random::<u8>();
-        let yval:u8 = if x != y {rand::random::<u8>()} else {xval};
+        let x_val:u8 = rand::random::<u8>();
+        let y_val:u8 = if y == x {x_val} else {rand::random::<u8>()};
 
         let memory = [
-            0x60 | x, xval,
-            0x60 | y, yval,
+            0xA3, 0x00,
+            0x60 | x, x_val,
+            0x60 | y, y_val,
             0x80 | x, 0x07 | (y << 0x4),
+            0xFF, 0x55,
         ];
 
-        let mut machine = Chip8::default();
-        machine.load_rom(&memory);
-        machine.cycle();
-        machine.cycle();
-        machine.cycle();
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
 
-        let (sum, flag) = yval.overflowing_sub(xval);
-        assert!(machine.v[x as usize] == sum);
-        assert!(machine.v[0xF] == if flag {0} else {1});
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        let (sum, flag) = y_val.overflowing_sub(x_val);
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), sum);
+        }
+        assert_eq!(bus.memory.read_memory(0x30F), if flag {0} else {1});
     }
-    assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_8xye(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_9xy0(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_annn(){
     assert!(false);
 }
@@ -506,100 +582,116 @@ fn test_annn(){
 #[test]
 fn test_bnnn(){
     let mut rng = rand::thread_rng();
+    for _ in 0..1000 {
 
-    let nnn:u16 = rng.gen_range(0x204, 0xF00);
-    let val:u8 = rand::random::<u8>();
+        let nnn:u16 = rng.gen_range(0x206, 0xEFD);
+        let val:u8 = rand::random::<u8>();
 
-    let zn = ((nnn >> 0x8) | 0xB0) as u8;
-    let nn = (nnn & 0x0FF) as u8;
+        let zn = ((nnn >> 0x8) | 0xB0) as u8;
+        let nn = (nnn & 0x0FF) as u8;
 
-    let mut memory:[u8;0xE00] = [0;0xE00];
-    memory[0] = 0x60;
-    memory[1] = val;
-    memory[2] = zn;
-    memory[3] = nn;
+        let mut memory:[u8;0xE00] = [0;0xE00];
 
-    memory[(nnn as usize) - 0x200 + (val as usize)] = 0x65;
-    memory[(nnn as usize) - 0x200 + (val as usize) + 1] = 0x55;
+        memory[0..0x6].copy_from_slice(&[
+            0xA3, 0x00,
+            0x60, val,
+            zn, nn,
+        ]);
 
-    let mut machine = Chip8::default();
-    machine.load_rom(&memory);
-    machine.cycle();
-    machine.cycle();
-    machine.cycle();
+        let start = (nnn as usize) - 0x200 + (val as usize);
+        memory[start..(start+4)].copy_from_slice(&[
+            0x65, 0xFF,
+            0xFF, 0x55,
+        ]);
 
-    assert!(machine.v[5] == 0x55);
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x305), 0xFF);
+    }
 }
 
 #[test]
+#[ignore]
 fn test_cxnn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_dxyn(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_ex9e(){
-
-    let opt:u16  = 0xE09E;
-    let xval = rand::random::<u16>() & 0x0F00;
-    let key = xval >> 0x8;
-
-    // set up machine
-    let mut machine = Chip8::default();
-    machine.key[key as usize] = true;
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_exa1(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx07(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx0a(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx15(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx18(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx1e(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx29(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx33(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx55(){
     assert!(false);
 }
 
 #[test]
+#[ignore]
 fn test_fx65(){
     assert!(false);
-}*/
+}
