@@ -292,7 +292,7 @@ impl Processor {
         let location = x + y*SCREEN_WIDTH;
         let index = self.index as usize;
         for i in 0..height {
-            if (y + i >= 0) || (y + i < SCREEN_HEIGHT) {
+            if y + i < SCREEN_HEIGHT {
                 let byte = memory.read_memory((index + i) as u16) as usize;
                 self.draw_byte(location + i*SCREEN_WIDTH, byte);
             }
