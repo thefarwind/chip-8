@@ -274,7 +274,7 @@ impl Processor {
         }
     }
 
-    fn decrement_sound_timer(&mut self, audio:&Audio){
+    fn decrement_sound_timer<A:Audio>(&mut self, audio:&A){
         if self.sound_timer > 0x0 {
             if self.sound_timer == 0x1 {
                 audio.beep();
@@ -283,7 +283,7 @@ impl Processor {
         }
     }
 
-    fn print_screen(&self, display:&mut Display){
+    fn print_screen<D:Display>(&self, display:&mut D){
         for row in 0..SCREEN_HEIGHT {
             for col in 0..SCREEN_WIDTH {
                 let pixel = match self.screen[SCREEN_WIDTH*row + col] {
@@ -318,7 +318,7 @@ impl Processor {
         }
     }
 
-    fn set_pushed(&mut self, input:&Input){
+    fn set_pushed<I:Input>(&mut self, input:&I){
         let timeout = Duration::new(1,0);
 
         for key in &mut self.keys {
