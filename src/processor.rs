@@ -1,6 +1,7 @@
 extern crate rand;
 
 use super::std;
+use super::std::time::{Duration, Instant};
 
 use super::bus::Bus;
 use super::io::{Audio, Display, Input, Pixel};
@@ -14,6 +15,12 @@ const FRAME_RATE:u64 = 17;
 
 // Processor
 ////////////////////////////////////////////////////////////////////////
+
+#[derive(Clone, Copy)]
+enum Key {
+    Up,
+    Down(Instant),
+}
 
 pub struct Processor {
     oc:u16, // Opt Code
@@ -29,7 +36,7 @@ pub struct Processor {
     v:[u8;0x10],
     stack:[u16;0x10],
     screen:[bool;SCREEN_WIDTH*SCREEN_HEIGHT],
-    keys:[bool;0x10],
+    keys:[Key;0x10],
 }
 
 impl Default for Processor {
@@ -48,7 +55,7 @@ impl Default for Processor {
             v:[0x0;0x10],
             stack:[0x0;0x10],
             screen:[false;SCREEN_WIDTH*SCREEN_HEIGHT],
-            keys:[false;0x10],
+            keys:[Key::Up;0x10],
         }
     }
 }
@@ -201,15 +208,17 @@ impl Processor {
             },
             (0xE,x,0x9,0xE) => { // skip next if key in VX is pressed;
                 match self.keys[self.v[x] as usize] {
-                    true  => self.pc += 4,
-                    false => self.pc += 2,
+                    Key::Down(_) => self.pc += 4,
+                    Key::Up => self.pc += 2,
                 }
+                self.keys[self.v[x] as usize] = Key::Up;
             },
             (0xE,x,0xA,0x1) => { // skip next if key in VX is not pressed;
                 match self.keys[self.v[x] as usize] {
-                    true  => self.pc += 2,
-                    false => self.pc += 4,
+                    Key::Down(_)  => self.pc += 2,
+                    Key::Up => self.pc += 4,
                 }
+                self.keys[self.v[x] as usize] = Key::Up;
             },
             (0xF,x,0x0,0x7) => {
                 self.v[x] = self.delay_timer;
@@ -310,9 +319,17 @@ impl Processor {
     }
 
     fn set_pushed(&mut self, input:&Input){
-        self.keys[..].copy_from_slice(&[false;0x10]);
+        let timeout = Duration::new(1,0);
+
+        for key in &mut self.keys {
+            *key = match *key {
+                Key::Down(x) if x.elapsed() > timeout => Key::Up,
+                _ => *key,
+            };
+        }
+
         for key in input.get_keys(){
-            self.keys[key as usize] = true;
+            self.keys[key as usize] = Key::Down(Instant::now());
         }
     }
     // pub &mut self functions
@@ -327,11 +344,11 @@ impl Processor {
         self.decrement_delay_timer();
         self.decrement_sound_timer(&bus.audio);
 
-        self.set_pushed(&bus.input);
         if self.draw_flag {
             self.print_screen(&mut bus.display);
             self.draw_flag = false;
-            std::thread::sleep(std::time::Duration::from_millis(FRAME_RATE));
+            std::thread::sleep(Duration::from_millis(FRAME_RATE));
         }
+        self.set_pushed(&bus.input);
     }
 }
