@@ -83,13 +83,18 @@ impl<'a> Display<'a> {
 }
 
 impl<'a> io::Display for Display<'a> {
-    fn set(&mut self, row:usize, col:usize, state:io::Pixel)
-            -> Result<(),()> {
-        let pixel:ncurses::chtype = match state {
-            io::Pixel::On => 0x34,
-            io::Pixel::Off => 0x20,
+    fn set(&mut self, row:usize, col:usize, state:io::Pixel) -> Result<(),()> {
+
+        let attr = match state {
+            io::Pixel::On => ncurses::A_NORMAL(),
+            io::Pixel::Off => ncurses::A_STANDOUT(),
         };
-        match ncurses::mvwaddch(*self.screen, row as i32, col as i32, pixel){
+
+        match ncurses::mvwchgat(
+                *self.screen,
+                row as i32,
+                col as i32,
+                1, attr, 0) {
             ncurses::ERR => Err(()),
             _ => Ok(()),
         }
