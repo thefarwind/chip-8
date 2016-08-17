@@ -180,8 +180,9 @@ impl Processor {
                 self.pc += 2;
             },
             (0x8,x,_,0xE) => { // shift VX left. VF set to dropped bit.
-               self.v[0xF] = (self.v[x] >> 0x7) & 0x1;
+               let bit = (self.v[x] >> 0x7) & 0x1;
                self.v[x] <<= 1;
+               self.v[0xF] = bit;
                self.pc += 2;
             },
             (0x9,x,y,0x0) => { // skip next instruction if VX != VY
