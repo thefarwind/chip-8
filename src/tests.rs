@@ -558,9 +558,37 @@ fn test_8xy5(){
 }
 
 #[test]
-#[ignore]
 fn test_8xy6(){
-    assert!(false);
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
+
+        let x_val = rand::random::<u8>();
+
+        let memory = [
+            0xA3, 0x00,                     // set index to 0x300
+            0x60 | x, x_val,                // set vx to x_val
+            0x80 | x, 0x06 | (y << 0x4),    // do rshift
+            0xFF, 0x55,                     // set 0x300-0x30F to V[0..F]
+        ];
+
+        let f_val = x_val & 0x1;
+        let t_val = x_val >> 0x1;
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), t_val);
+        }
+        assert_eq!(bus.memory.read_memory(0x30F), f_val);
+    }
 }
 
 #[test]

@@ -168,8 +168,9 @@ impl Processor {
                 self.pc += 2;
             },
             (0x8,x,_,0x6) => { // shift VX right. VF set to dropped bit.
-                self.v[0xF] = self.v[x] & 0x1;
+                let bit = self.v[x] & 0x1;
                 self.v[x] >>= 1;
+                self.v[0xF] = bit;
                 self.pc += 2;
             },
             (0x8,x,y,0x7) => { // set VX to VY - VX. if borrow {0} else {1}
