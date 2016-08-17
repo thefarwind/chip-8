@@ -7,6 +7,7 @@ use self::rand::Rng;
 
 use super::bus;
 use super::io::{Audio, Display, Input};
+use super::memory;
 use super::processor;
 
 // Mock IO Devices
@@ -200,6 +201,42 @@ fn test_mock_display_refresh(){
     for i in 0..SCREEN_SIZE {
         assert_eq!(tracker[i], mock.waiting[i]);
         assert_eq!(tracker[i], mock.drawn[i]);
+    }
+}
+
+// Memory Tests
+////////////////////////////////////////////////////////////////////////
+
+#[test]
+fn test_memory_write(){
+    let mut memory = memory::Memory::default();
+    let mut values = [0x0u8;memory::RAM_SIZE];
+
+    for i in 0x0..memory::RAM_SIZE {
+        for j in 0x0..0x100 {
+            let index = i as u16;;
+            let value = j as u8;
+
+            values[i] = value;
+            memory.write_memory(index, value);
+            assert_eq!(values[i], memory.read_memory(index));
+        }
+    }
+}
+
+#[test]
+fn test_memory_set_range(){
+    let mut memory = memory::Memory::default();
+    let mut values = [0x0u8;memory::RAM_SIZE];
+
+    for i in 0x0..(memory::RAM_SIZE - 0x200) {
+        values[i] = rand::random::<u8>();
+    }
+
+    memory.set_range(0x200, &values[0x200..]);
+
+    for i in 0x200..memory::RAM_SIZE {
+        assert_eq!(values[i], memory.read_memory(i as u16));
     }
 }
 
@@ -521,9 +558,37 @@ fn test_8xy5(){
 }
 
 #[test]
-#[ignore]
 fn test_8xy6(){
-    assert!(false);
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
+
+        let x_val = rand::random::<u8>();
+
+        let memory = [
+            0xA3, 0x00,                     // set index to 0x300
+            0x60 | x, x_val,                // set vx to x_val
+            0x80 | x, 0x06 | (y << 0x4),    // do rshift
+            0xFF, 0x55,                     // set 0x300-0x30F to V[0..F]
+        ];
+
+        let f_val = x_val & 0x1;
+        let t_val = x_val >> 0x1;
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), t_val);
+        }
+        assert_eq!(bus.memory.read_memory(0x30F), f_val);
+    }
 }
 
 #[test]
@@ -562,9 +627,37 @@ fn test_8xy7(){
 }
 
 #[test]
-#[ignore]
 fn test_8xye(){
-    assert!(false);
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let y = rand::random::<u8>() & 0x0F;
+
+        let x_val = rand::random::<u8>();
+
+        let memory = [
+            0xA3, 0x00,                     // set index to 0x300
+            0x60 | x, x_val,                // set vx to x_val
+            0x80 | x, 0x0E | (y << 0x4),    // do rshift
+            0xFF, 0x55,                     // set 0x300-0x30F to V[0..F]
+        ];
+
+        let f_val = if x_val > 0x7F {1} else {0};
+        let t_val = x_val << 0x1;
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        if x != 0xF {
+            assert_eq!(bus.memory.read_memory(0x300 + x as u16), t_val);
+        }
+        assert_eq!(bus.memory.read_memory(0x30F), f_val);
+    }
 }
 
 #[test]
