@@ -23,7 +23,7 @@ enum Key {
 }
 
 pub struct Processor {
-    oc:u16, // Opt Code
+    oc:u16, // Operational Code
     pc:u16, // Program Counter
     sp:u16, // Stack Pointer
     index:u16, // Index
@@ -76,11 +76,11 @@ impl Processor {
 
     // &mut self functions
 
-    fn load_optcode(&mut self, memory:&Memory){
+    fn load_opcode(&mut self, memory:&Memory){
         self.oc = Processor::read_address(self.pc, memory);
     }
 
-    fn run_optcode<A, D, I>(&mut self, bus:&mut Bus<A, D, I>)
+    fn run_opcode<A, D, I>(&mut self, bus:&mut Bus<A, D, I>)
             where
                 A: Audio,
                 D: Display,
@@ -346,8 +346,8 @@ impl Processor {
                 A: Audio,
                 D: Display,
                 I: Input {
-        self.load_optcode(&bus.memory);
-        self.run_optcode(bus);
+        self.load_opcode(&bus.memory);
+        self.run_opcode(bus);
         self.decrement_delay_timer();
         self.decrement_sound_timer(&bus.audio);
 
