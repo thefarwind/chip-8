@@ -189,7 +189,7 @@ impl Processor {
                self.pc += 2;
             },
             (0x9,x,y,0x0) => { // skip next instruction if VX != VY
-                self.pc = if  self.v[x] != self.v[y] {
+                self.pc += if self.v[x] != self.v[y] {
                     4
                 } else {
                     2
