@@ -88,7 +88,7 @@ impl Processor {
         let b1 = (self.oc & 0xF000) >> 0xC;
         let b2 = ((self.oc & 0x0F00) >> 0x8) as usize;
         let b3 = ((self.oc & 0x00F0) >> 0x4) as usize;
-        let b4 = (self.oc & 0x000F) >> 0x0;
+        let b4 = self.oc & 0x000F;
 
         match (b1, b2, b3, b4) {
             (0x0,0x0,0xE,0x0) => { // clear the screen
@@ -114,22 +114,25 @@ impl Processor {
                 self.pc = self.oc & 0x0FFF;
             },
             (0x3,x,_,_) => { // skip next instruction if VX == NN
-                match self.v[x] == (self.oc & 0x00FF) as u8 {
-                    true  => self.pc += 4,
-                    false => self.pc += 2,
-                }
+                self.pc += if self.v[x] as u16 == (self.oc & 0x00FF) {
+                    4
+                } else {
+                    2
+                };
             },
             (0x4,x,_,_) => { // skip next instruction if VX != NN
-                match self.v[x] != (self.oc & 0x00FF) as u8 {
-                    true  => self.pc += 4,
-                    false => self.pc += 2,
-                }
+                self.pc += if self.v[x] as u16 != (self.oc & 0x00FF) {
+                    4
+                } else {
+                    2
+                };
             },
             (0x5,x,y,0x0) => { // skip next instruction if VX == VY
-                match self.v[x] == self.v[y] {
-                    true  => self.pc += 4,
-                    false => self.pc += 2,
-                }
+                self.pc += if self.v[x] == self.v[y] {
+                    4
+                } else {
+                    2
+                };
             },
             (0x6,x,_,_) => { // set VX to NN
                 self.v[x] = (self.oc & 0x00FF) as u8;
@@ -186,10 +189,11 @@ impl Processor {
                self.pc += 2;
             },
             (0x9,x,y,0x0) => { // skip next instruction if VX != VY
-                match self.v[x] != self.v[y] {
-                    true  => self.pc += 4,
-                    false => self.pc += 2,
-                }
+                self.pc = if  self.v[x] != self.v[y] {
+                    4
+                } else {
+                    2
+                };
             },
             (0xA,_,_,_) => { // set I to NNN
                 self.index = self.oc & 0x0FFF;
@@ -288,9 +292,10 @@ impl Processor {
     fn print_screen<D:Display>(&self, display:&mut D){
         for row in 0..SCREEN_HEIGHT {
             for col in 0..SCREEN_WIDTH {
-                let pixel = match self.screen[SCREEN_WIDTH*row + col] {
-                    true => Pixel::On,
-                    false => Pixel::Off,
+                let pixel = if self.screen[SCREEN_WIDTH*row + col] {
+                    Pixel::On
+                } else {
+                    Pixel::Off
                 };
                 let _ = display.set(row, col, pixel);
             }
