@@ -367,9 +367,74 @@ fn test_3xnn_not_equal(){
 }
 
 #[test]
-#[ignore]
-fn test_4xnn(){
-    assert!(false);
+fn test_4xnn_equal(){
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let val = rand::random::<u8>();
+
+        let mut test = rand::random::<u8>();
+        while (test == val)|(test == 0) {test = rand::random::<u8>()};
+        let test = test;
+
+        let memory = [
+            0xA3, 0x00,     // set index to 0x300
+            0x60 | x, val,  // set vx to val
+            0x40 | x, val,  // compare vx value to val
+            0x60, test,     // set v0 to test value where test != val
+            0xFF, 0x55,     // set 0x300-0x30F to V[0..F]
+        ];
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300), test);
+    }
+}
+
+#[test]
+fn test_4xnn_not_equal(){
+    for _ in 0..1000 {
+        let x = rand::random::<u8>() & 0x0F;
+        let x_val = rand::random::<u8>();
+
+        let mut nn = rand::random::<u8>();
+        while nn == x_val {nn = rand::random::<u8>()};
+        let nn = nn;
+
+        let mut test = rand::random::<u8>();
+        while (test == x_val) | (test == nn) | (test == 0) {
+            test = rand::random::<u8>()
+        };
+        let test = test;
+
+        let memory = [
+            0xA3, 0x00,         // set index to 0x300
+            0x60 | x, x_val,    // set vx to val
+            0x40 | x, nn,       // compare vx value to val
+            0x00, 0x00,         // skipped
+            0x60, test,         // set v0 to test value where test != val
+            0xFF, 0x55,         // set 0x300-0x30F to V[0..F]
+        ];
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300), test);
+    }
 }
 
 #[test]
