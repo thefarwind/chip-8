@@ -1064,9 +1064,27 @@ fn test_9xy0_not_equal(){
 }
 
 #[test]
-#[ignore]
 fn test_annn(){
-    assert!(false);
+    for index in 0x206u16..0x1000 {
+        let n = (index >> 0x8) as u8;
+        let nn = (index & 0xFF) as u8;
+
+        let memory = [
+            0x60, 0x55,     // set v0 to 0x55
+            0xA0 | n, nn,   // set index to NNN
+            0xF0, 0x55,     // set index to v0
+        ];
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(index), 0x55);
+    }
 }
 
 #[test]
