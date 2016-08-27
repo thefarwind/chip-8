@@ -94,6 +94,7 @@ impl Processor {
             (0x0,0x0,0xE,0x0) => { // clear the screen
                 self.screen[..]
                         .copy_from_slice(&[false;SCREEN_WIDTH*SCREEN_HEIGHT]);
+                self.draw_flag = true;
                 self.pc += 2;
             },
             (0x0,0x0,0xE,0xE) => { // return from subroutine
