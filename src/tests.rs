@@ -252,9 +252,25 @@ fn test_0nnn(){
 }
 
 #[test]
-#[ignore]
 fn test_00e0(){
-    assert!(false);
+    let mut bus = new_mock_bus();
+    for i in 0x0..SCREEN_SIZE {
+        bus.display.waiting[i] = if (i & 0x1) == 0x1 {
+            io::Pixel::On
+        } else {
+            io::Pixel::Off
+        };
+    }
+    bus.display.drawn[..].copy_from_slice(&bus.display.waiting);
+    bus.memory.write_memory(0x201, 0xE0);
+
+    let mut processor = processor::Processor::default();
+    processor.cycle(&mut bus);
+
+    for i in 0x0..SCREEN_SIZE {
+        assert_eq!(bus.display.waiting[i], io::Pixel::Off);
+        assert_eq!(bus.display.drawn[i], io::Pixel::Off);
+    }
 }
 
 #[test]
