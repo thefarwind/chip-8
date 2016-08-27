@@ -244,9 +244,11 @@ fn test_memory_set_range(){
 ////////////////////////////////////////////////////////////////////////
 
 #[test]
-#[ignore]
+#[should_panic(expected="TODO -- 0x0NNN")]
 fn test_0nnn(){
-    assert!(false);
+    let mut bus = new_mock_bus();
+    let mut processor = processor::Processor::default();
+    processor.cycle(&mut bus);
 }
 
 #[test]
