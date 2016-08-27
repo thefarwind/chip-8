@@ -290,9 +290,122 @@ fn test_1nnn(){
 }
 
 #[test]
-#[ignore]
-fn test_2nnn(){
-    assert!(false);
+fn test_2nnn_00ee_values(){
+    for index in 0x206..0xFFC {
+        let n = (index >> 0x8) as u8;
+        let nn = (index & 0xFF) as u8;
+
+        let mut memory = [0x0u8;0xE00];
+
+        let block = [
+            0xA3, 0x00,     // Set Index to 0x300
+            0x20 | n, nn,   // call function at location NNN
+            0xFF, 0x55,     // Read V[0-F] to 0x300-F
+        ];
+        memory[..0x6].copy_from_slice(&block);
+
+        let block = [
+            0x60, 0x55,     // copy 0x55 into v0
+            0x00, 0xEE,     // return from function call
+        ];
+        memory[(index-0x200)..(index-0x1FC)].copy_from_slice(&block);
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+        processor.cycle(&mut bus);
+
+        assert_eq!(bus.memory.read_memory(0x300), 0x55);
+    }
+}
+
+#[test]
+fn test_2nnn_00ee_depth_and_back(){
+    let mut memory = [0x0u8;0x200];
+
+    let mut base = 0x0;
+    for _ in 0x0..0x10 {
+        let next = base + 0x10;
+        // call subroutine
+        memory[base] = (next >> 0x8) as u8 + 0x22;
+        memory[base + 1] = (next & 0xFF) as u8;
+        // exit subroutine
+        memory[base + 2] = 0x00;
+        memory[base + 3] = 0xEE;
+        base = next;
+    }
+    // exit subroutine
+    memory[base] = 0x00;
+    memory[base+1] = 0xEE;
+
+
+    let mut bus = new_mock_bus();
+    bus.memory.set_range(0x200, &memory);
+
+    let mut processor = processor::Processor::default();
+    for _ in 0x0..0x20 {
+        processor.cycle(&mut bus);
+    }
+}
+
+#[test]
+#[should_panic(expected="subtract with overflow")]
+fn test_2nnn_00ee_panic_stack_overflow_bottom(){
+    let mut memory = [0x0u8;0x200];
+
+    let mut base = 0x0;
+    for _ in 0x0..0x10 {
+        let next = base + 0x10;
+        // call subroutine
+        memory[base] = (next >> 0x8) as u8 + 0x22;
+        memory[base + 1] = (next & 0xFF) as u8;
+        // exit subroutine
+        memory[base + 2] = 0x00;
+        memory[base + 3] = 0xEE;
+        base = next;
+    }
+    // exit subroutine
+    memory[base] = 0x00;
+    memory[base+1] = 0xEE;
+
+
+    let mut bus = new_mock_bus();
+    bus.memory.set_range(0x200, &memory);
+
+    // the 0x11th 00ee call panics due to popping too much off the stack
+    let mut processor = processor::Processor::default();
+    for _ in 0x0..0x21 {
+        processor.cycle(&mut bus);
+    }
+}
+
+#[test]
+#[should_panic(expected="index out of bounds")]
+fn test_2nnn_00ee_panic_stack_overflow_top(){
+    let mut memory = [0x0u8;0x200];
+
+    let mut base = 0x0;
+    for _ in 0x0..0x11 {
+        let next = base + 0x10;
+        // call subroutine
+        memory[base] = (next >> 0x8) as u8 + 0x22;
+        memory[base + 1] = (next & 0xFF) as u8;
+        base = next;
+    }
+
+    let mut bus = new_mock_bus();
+    bus.memory.set_range(0x200, &memory);
+
+    // the 0x11th 2nnn call panics due to exceeding stack size
+    let mut processor = processor::Processor::default();
+    for _ in 0x0..0x11 {
+        processor.cycle(&mut bus);
+    }
 }
 
 #[test]
