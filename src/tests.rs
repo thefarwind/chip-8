@@ -1145,9 +1145,32 @@ fn test_bnnn(){
 }
 
 #[test]
-#[ignore]
 fn test_cxnn(){
-    assert!(false);
+    let mut difference = false;
+    for x in 0x0u8..0x10 {
+        for nn in 0x0..0x100 {
+            let nn = nn as u8;
+            let memory = [
+                0xA3, 0x00,
+                0xC0 | x, nn,
+                0xFF, 0x55,
+            ];
+
+            let mut bus = new_mock_bus();
+            bus.memory.set_range(0x200, &memory);
+
+            let mut processor = processor::Processor::default();
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+
+            let value = bus.memory.read_memory(0x300 | x as u16);
+            let test  = value & nn;
+            assert_eq!(value, test);
+            difference = value != nn;
+        };
+    }
+    assert!(difference);
 }
 
 #[test]
