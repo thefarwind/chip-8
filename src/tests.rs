@@ -1180,9 +1180,50 @@ fn test_dxyn(){
 }
 
 #[test]
-#[ignore]
 fn test_ex9e(){
-    assert!(false);
+    for key in 0x0u8..0x10 {
+        for reg in 0x0u8..0x10 {
+            for &pressed in &[true, false] {
+                let mut input = MockInput::default();
+
+                let memory = if pressed {
+                    input.set(key);
+                    [
+                        0xA3, 0x00,
+                        0x60 | reg, key,
+                        0xE0 | reg, 0x9E,
+                        0x00, 0x00,
+                        0x60, 0x55,
+                        0xFF, 0x55,
+                    ]
+                } else {
+                    [
+                        0xA3, 0x00,
+                        0x60 | reg, key,
+                        0xE0 | reg, 0x9E,
+                        0x60, 0x55,
+                        0xFF, 0x55,
+                        0x00, 0x00,
+                    ]
+                };
+
+                let mut bus = bus::Bus::new(
+                    MockAudio::default(),
+                    MockDisplay::default(),
+                    input);
+
+                bus.memory.set_range(0x200, &memory);
+
+                let mut processor = processor::Processor::default();
+                processor.cycle(&mut bus);
+                processor.cycle(&mut bus);
+                processor.cycle(&mut bus);
+                processor.cycle(&mut bus);
+                processor.cycle(&mut bus);
+                assert_eq!(bus.memory.read_memory(0x300), 0x55);
+            }
+        }
+    }
 }
 
 #[test]
