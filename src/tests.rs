@@ -1339,9 +1339,46 @@ fn test_fx33(){
 }
 
 #[test]
-#[ignore]
 fn test_fx55(){
-    assert!(false);
+    for reg in 0x0..0x10 {
+        let memory = [
+            0xA3, 0x00,
+            0x60, 0x10,
+            0x61, 0x11,
+            0x62, 0x12,
+            0x63, 0x13,
+            0x64, 0x14,
+            0x65, 0x15,
+            0x66, 0x16,
+            0x67, 0x17,
+            0x68, 0x18,
+            0x69, 0x19,
+            0x6A, 0x1A,
+            0x6B, 0x1B,
+            0x6C, 0x1C,
+            0x6D, 0x1D,
+            0x6E, 0x1E,
+            0x6F, 0x1F,
+            0xF0 | reg, 0x55,
+        ];
+
+        let mut bus = new_mock_bus();
+        bus.memory.set_range(0x200, &memory);
+
+        let mut processor = processor::Processor::default();
+
+        for _ in 0x0..0x12 {
+            processor.cycle(&mut bus);
+        }
+
+        for val in 0x0..reg+1 {
+            assert_eq!(bus.memory.read_memory(0x300 | val as u16), val + 0x10);
+        }
+
+        for val in reg+1..0x10 {
+            assert_eq!(bus.memory.read_memory(0x300 | val as u16), 0x0);
+        }
+    }
 }
 
 #[test]
