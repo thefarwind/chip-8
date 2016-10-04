@@ -1280,9 +1280,32 @@ fn test_fx07(){
 }
 
 #[test]
-#[ignore]
 fn test_fx0a(){
-    assert!(false);
+    for key in 0x0u8..0x10 {
+        for reg in 0x0u8..0x10 {
+            let mut input = MockInput::default();
+
+            let memory = [
+                0xA3, 0x00,
+                0xF0 | reg, 0x0A,
+                0xFF, 0x55,
+            ];
+
+            input.set(key);
+            let mut bus = bus::Bus::new(
+                MockAudio::default(),
+                MockDisplay::default(),
+                input);
+
+            bus.memory.set_range(0x200, &memory);
+
+            let mut processor = processor::Processor::default();
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+            assert_eq!(bus.memory.read_memory(0x300 + reg as u16), key);
+        }
+    }
 }
 
 #[test]
