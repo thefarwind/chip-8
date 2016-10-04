@@ -233,6 +233,7 @@ impl Processor {
             },
             (0xF,x,0x0,0xA) => { // a keypress is awaited, then stored in v[x]
                 self.v[x] = bus.input.get_key();
+                self.pc += 2;
             },
             (0xF,x,0x1,0x5) => { // set delay timer to VX
                 self.delay_timer = self.v[x];
