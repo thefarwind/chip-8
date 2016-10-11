@@ -1333,9 +1333,35 @@ fn test_fx29(){
 }
 
 #[test]
-#[ignore]
 fn test_fx33(){
-    assert!(false);
+    for x in 0x0..0x10 {
+        for xval in 0..0x100 {
+            let xval = xval as u8;
+
+            let memory = [
+                0xA3, 0x00,
+                0x60 | x, xval,
+                0xF0 | x, 0x33,
+            ];
+
+
+            let mut bus = new_mock_bus();
+            bus.memory.set_range(0x200, &memory);
+
+            let mut processor = processor::Processor::default();
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+            processor.cycle(&mut bus);
+
+            let hundreds = xval / 100;
+            let tens = (xval / 10) % 100;
+            let ones = xval % 10;
+
+            assert_eq!(bus.memory.read_memory(0x300), hundreds);
+            assert_eq!(bus.memory.read_memory(0x301), tens);
+            assert_eq!(bus.memory.read_memory(0x302), ones);
+        }
+    }
 }
 
 #[test]
