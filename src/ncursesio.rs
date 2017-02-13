@@ -16,11 +16,11 @@ enum Key {
     Und(i32),
 }
 
-pub struct Input<'a> {
-    screen:&'a ncurses::SCREEN,
+pub struct Input {
+    screen: ncurses::SCREEN,
 }
 
-impl<'a> Input<'a> {
+impl<'a> Input {
     fn map_key(key:i32) -> Key {
         match key {
             0x31 => Key::Key(0x0), // 1
@@ -43,46 +43,46 @@ impl<'a> Input<'a> {
         }
     }
 
-    pub fn new(screen:&'a ncurses::SCREEN) -> Input<'a>{
+    pub fn new(screen: ncurses::SCREEN) -> Input {
         Input{screen:screen}
     }
 }
 
-impl<'a> io::Input for Input<'a> {
+impl io::Input for Input {
     fn get_keys(&self) -> Vec<u8> {
         let mut keys = Vec::<u8>::new();
-        ncurses::nodelay(*self.screen, true);
+        ncurses::nodelay(self.screen, true);
         loop {
-            match Input::map_key(ncurses::wgetch(*self.screen)) {
+            match Input::map_key(ncurses::wgetch(self.screen)) {
                 Key::Key(key) => keys.push(key),
                 Key::Und(ncurses::ERR) => break,
                 _ =>{},
             }
         }
-        ncurses::nodelay(*self.screen, false);
+        ncurses::nodelay(self.screen, false);
         keys
     }
 
     fn get_key(&self) -> u8 {
         loop {
-            if let Key::Key(x) = Input::map_key(ncurses::wgetch(*self.screen)){
+            if let Key::Key(x) = Input::map_key(ncurses::wgetch(self.screen)){
                 return x;
             }
         }
     }
 }
 
-pub struct Display<'a> {
-    screen:&'a ncurses::SCREEN,
+pub struct Display {
+    screen: ncurses::SCREEN,
 }
 
-impl<'a> Display<'a> {
-    pub fn new(screen:&'a ncurses::SCREEN) -> Display<'a>{
+impl<'a> Display {
+    pub fn new(screen: ncurses::SCREEN) -> Display {
         Display{screen:screen}
     }
 }
 
-impl<'a> io::Display for Display<'a> {
+impl<'a> io::Display for Display {
     fn set(&mut self, row:usize, col:usize, state:io::Pixel) -> Result<(),()> {
 
         let attr = match state {
@@ -91,7 +91,7 @@ impl<'a> io::Display for Display<'a> {
         };
 
         match ncurses::mvwchgat(
-                *self.screen,
+                self.screen,
                 row as i32,
                 col as i32,
                 1, attr, 0) {
@@ -101,6 +101,6 @@ impl<'a> io::Display for Display<'a> {
     }
 
     fn refresh(&mut self){
-        ncurses::wrefresh(*self.screen);
+        ncurses::wrefresh(self.screen);
     }
 }
