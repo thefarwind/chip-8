@@ -34,10 +34,11 @@ fn main() {
     ncurses::noecho();
     ncurses::cbreak();
 
+
     let mut machine = chip_8::Chip8::new(
         ncursesio::Audio::default(),
-        ncursesio::Display::new(&ncurses::stdscr),
-        ncursesio::Input::new(&ncurses::stdscr),
+        ncursesio::Display::new(ncurses::stdscr()),
+        ncursesio::Input::new(ncurses::stdscr()),
     );
 
     machine.load_rom(&data);
