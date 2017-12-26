@@ -1,7 +1,13 @@
+#[cfg(feature = "ncurses")]
 extern crate ncurses;
+#[cfg(feature = "termion")]
+extern crate termion;
 extern crate chip_8;
 
+#[cfg(feature = "ncurses")]
 mod ncursesio;
+#[cfg(feature = "termion")]
+mod termionio;
 
 use std::fs::File;
 use std::io::prelude::Read;
@@ -29,7 +35,11 @@ fn main() {
         if i & 1 == 1 {print!("\n")}
     }*/
 
+    main_cli(data);
+}
 
+#[cfg(feature = "ncurses")]
+fn main_cli(data: Vec<u8>) -> ! {
     ncurses::initscr();
     ncurses::noecho();
     ncurses::cbreak();
@@ -39,6 +49,18 @@ fn main() {
         ncursesio::Audio::default(),
         ncursesio::Display::new(ncurses::stdscr()),
         ncursesio::Input::new(ncurses::stdscr()),
+    );
+
+    machine.load_rom(&data);
+    machine.run();
+}
+
+#[cfg(feature = "termion")]
+fn main_cli(data: Vec<u8>) -> ! {
+    let mut machine = chip_8::Chip8::new(
+        termionio::Audio::default(),
+        termionio::Display::default(),
+        termionio::Input::default(),
     );
 
     machine.load_rom(&data);
