@@ -1,3 +1,5 @@
+extern crate termion;
+
 use std::io::{
     Write,
     stdout,
