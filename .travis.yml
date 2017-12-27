@@ -3,6 +3,14 @@ rust:
     - stable
     - beta
     - nightly
+install:
+    - cargo build --no-default-features --features ncurses --verbose
+    - cargo build --no-default-features --features termion --verbose
+script:
+    - cargo build --no-default-features --lib --verbose
+    - cargo build --no-default-features --features ncurses --verbose
+    - cargo build --no-default-features --features termion --verbose
+    - cargo test --no-default-features --lib --verbose
 matrix:
     allow_failures:
         - rust: nightly
