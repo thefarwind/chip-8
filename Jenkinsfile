@@ -6,9 +6,15 @@ pipeline {
 
   }
   stages {
-    stage('build') {
+    stage('Build') {
       steps {
         sh 'cargo build --verbose'
+      }
+    }
+
+    stage('Test') {
+      steps {
+        sh 'cargo test --verbose'
       }
     }
 
