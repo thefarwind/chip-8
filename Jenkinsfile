@@ -9,6 +9,8 @@ pipeline {
     stage('Build') {
       steps {
         sh 'cargo build --verbose'
+        sh 'cargo check --message-format=json'
+        recordIssues tool: cargo()
       }
     }
 

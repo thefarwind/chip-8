@@ -32,7 +32,7 @@ fn main() {
 
     ncurses::initscr();
     ncurses::noecho();
-    ncurses::cbreak();
+    ncurses::cbreak();;
 
 
     let mut machine = chip_8::Chip8::new(
