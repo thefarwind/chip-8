@@ -8,11 +8,11 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh 'cargo check --quiet --message-format=json'
+        sh 'cargo check --message-format json > cargo-check.log'
       }
       post {
         always {
-          recordIssues tool: cargo()
+          recordIssues tool: cargo(pattern: 'cargo-check.log')
         }
       }
     }
