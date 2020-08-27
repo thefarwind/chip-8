@@ -1,7 +1,7 @@
 pipeline {
   agent {
     docker {
-      image 'rust:1.31'
+      image 'rust:1.46'
     }
 
   }
@@ -10,7 +10,7 @@ pipeline {
       steps {
         sh 'cargo build --verbose'
         sh 'cargo check --message-format=json'
-        recordIssues tools: [cargo()]
+        recordIssues(tools: [cargo()])
       }
     }
 
