@@ -12,7 +12,7 @@ pipeline {
       }
       post {
         always {
-          recordIssues tool: Cargo
+          recordIssues tool: Cargo()
         }
       }
     }
