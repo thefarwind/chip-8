@@ -8,7 +8,7 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh 'cargo check --message-format=json'
+        sh 'cargo check --quiet --message-format=json'
       }
       post {
         always {
