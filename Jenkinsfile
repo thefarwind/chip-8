@@ -8,7 +8,8 @@ pipeline {
   stages {
     stage('Build') {
       steps {
-        sh 'cargo check --message-format json > cargo-check.log'
+        sh 'cargo build'
+        sh 'cargo clippy --message-format json > cargo-check.log'
       }
       post {
         always {
