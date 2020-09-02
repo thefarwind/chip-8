@@ -1,7 +1,7 @@
 pipeline {
   agent {
-    docker {
-      image 'rust:1.46'
+    dockerfile {
+      filename 'build.Dockerfile'
     }
 
   }
@@ -9,19 +9,16 @@ pipeline {
     stage('Build') {
       steps {
         sh 'cargo build'
-        sh 'cargo clippy --message-format json > cargo-check.log'
-      }
-      post {
-        always {
-          recordIssues tool: cargo(pattern: 'cargo-check.log')
-        }
+        sh 'cargo clippy --message-format json > cargo-clippy.log'
+        sh 'cargo audit'
+        recordIssues tool: cargo(pattern: 'cargo-clippy.log')
       }
     }
     stage('Test') {
       steps {
         sh 'cargo test --verbose'
+        sh 'cargo tarpaulin --ignore-tests'
       }
     }
-
   }
 }
