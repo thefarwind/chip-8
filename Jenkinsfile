@@ -2,6 +2,7 @@ pipeline {
   agent {
     docker {
       image 'rust:latest'
+      args '--security-opt seccomp=unconfined'
     }
   }
   stages {
