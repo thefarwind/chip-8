@@ -12,7 +12,7 @@ pipeline {
         sh 'cargo install cargo-tarpaulin cargo-audit'
         sh 'cargo build'
         sh 'cargo test'
-        sh 'cargo tarpaulin --ignore-tests'
+        sh 'cargo tarpaulin --lib --ignore-tests'
         sh 'cargo clippy'
         sh 'cargo audit'
         // recordIssues tool: cargo(pattern: 'cargo-clippy.log')
