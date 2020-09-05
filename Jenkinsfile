@@ -7,16 +7,15 @@ pipeline {
   stages {
     stage('Build') {
       steps {
+        sh 'rustup component add rustfmt'
+        sh 'rustup component add clippy'
+        sh 'cargo install cargo-tarpaulin cargo-audit'
         sh 'cargo build'
-        // sh 'cargo clippy --message-format json > cargo-clippy.log'
-        // sh 'cargo audit'
+        sh 'cargo test'
+        sh 'cargo tarpaulin --ignore-tests'
+        sh 'cargo clippy'
+        sh 'cargo audit'
         // recordIssues tool: cargo(pattern: 'cargo-clippy.log')
-      }
-    }
-    stage('Test') {
-      steps {
-        sh 'cargo test --verbose'
-        // sh 'cargo tarpaulin --ignore-tests'
       }
     }
   }
